@@ -1,0 +1,31 @@
+{
+  "reports": [
+    {
+      "name": "daily_orders_report",
+      "enabled": true,
+      "subject": "Daily Orders Report",
+      "body": "Attached is the daily orders report.",
+      "to": ["team1@example.com"],
+      "file_name_prefix": "daily_orders",
+      "query": "SELECT * FROM SALES_DB.PUBLIC.ORDERS WHERE ORDER_DATE = CURRENT_DATE()"
+    },
+    {
+      "name": "customer_summary_report",
+      "enabled": true,
+      "subject": "Customer Summary Report",
+      "body": "Attached is the customer summary report.",
+      "to": ["manager@example.com", "lead@example.com"],
+      "file_name_prefix": "customer_summary",
+      "query": "SELECT CUSTOMER_ID, COUNT(*) AS TOTAL_ORDERS FROM SALES_DB.PUBLIC.ORDERS GROUP BY CUSTOMER_ID"
+    },
+    {
+      "name": "failed_jobs_report",
+      "enabled": true,
+      "subject": "Failed Jobs Report",
+      "body": "Attached is the failed jobs report.",
+      "to": ["support@example.com"],
+      "file_name_prefix": "failed_jobs",
+      "query": "SELECT * FROM ADMIN_DB.PUBLIC.JOB_AUDIT WHERE STATUS = 'FAILED' AND RUN_DATE = CURRENT_DATE()"
+    }
+  ]
+}
