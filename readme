@@ -1,1 +1,3 @@
-read
+pip install snowflake-connector-python pandas python-dotenv
+
+python app.py
