@@ -10,6 +10,9 @@ from typing import Any
 import pandas as pd
 import snowflake.connector
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_env(name: str, required: bool = True, default: str | None = None) -> str | None:
     value = os.getenv(name, default)
