@@ -1,0 +1,164 @@
+!pip install snowflake-connector-python pandas openpyxl
+
+
+import snowflake.connector
+import pandas as pd
+import smtplib
+import ssl
+import os
+
+from email.message import EmailMessage
+from datetime import datetime
+from pathlib import Path
+
+
+# Snowflake connection
+SNOWFLAKE_CONFIG = {
+    "user": "YOUR_USER",
+    "password": "YOUR_PASSWORD",
+    "account": "YOUR_ACCOUNT",
+    "warehouse": "YOUR_WAREHOUSE",
+    "database": "YOUR_DATABASE",
+    "schema": "YOUR_SCHEMA",
+    "role": "YOUR_ROLE"
+}
+
+# Email configuration
+EMAIL_CONFIG = {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@gmail.com",
+    "sender_password": "your_app_password"
+}
+
+# Output folder
+OUTPUT_DIR = "reports"
+
+
+REPORTS = [
+
+{
+    "name": "daily_orders",
+    "query": """
+        SELECT CURRENT_DATE() AS RUN_DATE,
+               CURRENT_TIMESTAMP() AS RUN_TS
+    """,
+    "email_to": ["team1@company.com"],
+    "subject": "Daily Orders Report"
+},
+
+{
+    "name": "customer_summary",
+    "query": """
+        SELECT 'CUST001' AS CUSTOMER_ID,
+               25 AS TOTAL_ORDERS
+    """,
+    "email_to": ["manager@company.com"],
+    "subject": "Customer Summary Report"
+}
+
+]
+
+def connect_snowflake():
+
+    conn = snowflake.connector.connect(
+        user=SNOWFLAKE_CONFIG["user"],
+        password=SNOWFLAKE_CONFIG["password"],
+        account=SNOWFLAKE_CONFIG["account"],
+        warehouse=SNOWFLAKE_CONFIG["warehouse"],
+        database=SNOWFLAKE_CONFIG["database"],
+        schema=SNOWFLAKE_CONFIG["schema"],
+        role=SNOWFLAKE_CONFIG["role"]
+    )
+
+    return conn
+
+def run_query(conn, query):
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(query)
+
+        rows = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+
+        df = pd.DataFrame(rows, columns=columns)
+
+        return df
+
+    finally:
+        cursor.close()
+
+
+def save_report(df, report_name):
+
+    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    file_path = f"{OUTPUT_DIR}/{report_name}_{timestamp}.xlsx"
+
+    df.to_excel(file_path, index=False)
+
+    return file_path
+
+
+
+def send_email(receiver_list, subject, attachment):
+
+    msg = EmailMessage()
+
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_CONFIG["sender_email"]
+    msg["To"] = ", ".join(receiver_list)
+
+    msg.set_content("Please find the attached report.")
+
+    with open(attachment, "rb") as f:
+        file_data = f.read()
+        file_name = os.path.basename(attachment)
+
+    msg.add_attachment(
+        file_data,
+        maintype="application",
+        subtype="octet-stream",
+        filename=file_name
+    )
+
+    context = ssl.create_default_context()
+
+    with smtplib.SMTP(EMAIL_CONFIG["smtp_server"], EMAIL_CONFIG["smtp_port"]) as server:
+        server.starttls(context=context)
+        server.login(
+            EMAIL_CONFIG["sender_email"],
+            EMAIL_CONFIG["sender_password"]
+        )
+        server.send_message(msg)
+
+    print("Email sent →", receiver_list)
+
+
+
+conn = connect_snowflake()
+
+for report in REPORTS:
+
+    print("Running report:", report["name"])
+
+    df = run_query(conn, report["query"])
+
+    file_path = save_report(df, report["name"])
+
+    send_email(
+        report["email_to"],
+        report["subject"],
+        file_path
+    )
+
+conn.close()
+
+print("All reports completed")
+
+
+
